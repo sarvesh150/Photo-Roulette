@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photo Roulette</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0f;
+    --surface: #1a1a1c;
+    --border: #2e2e32;
+    --accent: #f0e040;
+    --accent2: #ff5c35;
+    --text: #f0ede8;
+    --muted: #6b6b72;
+  }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    gap: 32px;
+  }
+
+  header { text-align: center; }
+
+  header h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  header h1 span { color: var(--accent); }
+
+  .counter {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 8px;
+    letter-spacing: 0.05em;
+  }
+
+  .photo-frame {
+    width: 100%;
+    max-width: 700px;
+    background: var(--surface);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    position: relative;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .photo-frame img {
+    width: 100%;
+    max-height: 520px;
+    object-fit: contain;
+    display: block;
+    transition: opacity 0.3s ease;
+  }
+
+  .photo-frame img.fade { opacity: 0; }
+
+  .photo-name {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding: 10px 16px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .loading-msg {
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    font-size: 0.9rem;
+    padding: 60px 0;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  button {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    border: none;
+    cursor: pointer;
+    border-radius: 10px;
+    padding: 14px 28px;
+    transition: transform 0.12s, opacity 0.2s;
+    letter-spacing: 0.02em;
+  }
+
+  button:active { transform: scale(0.96); }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .btn-random {
+    background: var(--accent);
+    color: #111;
+    font-size: 1.05rem;
+    padding: 16px 36px;
+  }
+
+  .btn-random:hover:not(:disabled) { background: #f7eb5a; }
+
+  .btn-exclude {
+    background: var(--accent2);
+    color: #fff;
+  }
+
+  .btn-exclude:hover:not(:disabled) { background: #ff7154; }
+
+  .btn-reset {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-reset:hover { border-color: var(--muted); }
+
+  .excluded-section { width: 100%; max-width: 700px; }
+
+  .excluded-section h3 {
+    font-size: 0.8rem;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .excluded-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .chip button {
+    background: none;
+    border: none;
+    color: var(--accent2);
+    font-size: 0.9rem;
+    padding: 0;
+    line-height: 1;
+    cursor: pointer;
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Photo <span>Roulette</span></h1>
+  <div class="counter" id="counter">loading photos…</div>
+</header>
+
+<div class="photo-frame" id="frame">
+  <div class="loading-msg" id="loadingMsg">⏳ Loading…</div>
+  <img id="photoImg" src="" alt="" style="display:none">
+  <div class="photo-name" id="photoName"></div>
+</div>
+
+<div class="btn-row">
+  <button class="btn-random" id="btnRandom" onclick="showRandom()" disabled>🎲 Random Photo</button>
+  <button class="btn-exclude" id="btnExclude" onclick="excludeCurrent()" disabled>✕ Exclude This</button>
+  <button class="btn-reset" onclick="resetExcluded()">↺ Reset Excluded</button>
+</div>
+
+<div class="excluded-section" id="excludedSection" style="display:none">
+  <h3>Excluded (<span id="excludedCount">0</span>)</h3>
+  <div class="excluded-chips" id="excludedChips"></div>
+</div>
+
+<script>
+  let photos = [];
+  let excluded = new Set();
+  let currentIndex = null;
+
+  const photoImg = document.getElementById('photoImg');
+  const photoName = document.getElementById('photoName');
+  const counter = document.getElementById('counter');
+  const btnRandom = document.getElementById('btnRandom');
+  const btnExclude = document.getElementById('btnExclude');
+  const loadingMsg = document.getElementById('loadingMsg');
+  const excludedSection = document.getElementById('excludedSection');
+  const excludedChips = document.getElementById('excludedChips');
+  const excludedCount = document.getElementById('excludedCount');
+
+  // Load photo list from photos.json
+  fetch('photos.json')
+    .then(r => r.json())
+    .then(names => {
+      photos = names;
+      loadingMsg.style.display = 'none';
+      photoImg.style.display = 'block';
+      btnRandom.disabled = false;
+      updateCounter();
+      showRandom();
+    })
+    .catch(() => {
+      loadingMsg.textContent = '❌ Could not load photos.json';
+    });
+
+  function available() {
+    return photos.map((_, i) => i).filter(i => !excluded.has(i));
+  }
+
+  function showRandom() {
+    const pool = available();
+    if (!pool.length) {
+      photoImg.style.display = 'none';
+      loadingMsg.style.display = 'block';
+      loadingMsg.textContent = '🎉 All photos excluded! Reset to continue.';
+      btnExclude.disabled = true;
+      currentIndex = null;
+      return;
+    }
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    currentIndex = pick;
+
+    photoImg.classList.add('fade');
+    setTimeout(() => {
+      photoImg.src = 'photos/' + encodeURIComponent(photos[pick]);
+      photoImg.style.display = 'block';
+      loadingMsg.style.display = 'none';
+      photoImg.onload = () => photoImg.classList.remove('fade');
+      photoName.textContent = photos[pick];
+      btnExclude.disabled = false;
+    }, 200);
+  }
+
+  function excludeCurrent() {
+    if (currentIndex === null) return;
+    excluded.add(currentIndex);
+    updateCounter();
+    renderChips();
+    showRandom();
+  }
+
+  function resetExcluded() {
+    excluded.clear();
+    updateCounter();
+    renderChips();
+    if (currentIndex === null) showRandom();
+  }
+
+  function unexclude(i) {
+    excluded.delete(i);
+    updateCounter();
+    renderChips();
+  }
+
+  function updateCounter() {
+    const avail = available().length;
+    counter.textContent = `${photos.length} photos · ${avail} available · ${excluded.size} excluded`;
+  }
+
+  function renderChips() {
+    excludedCount.textContent = excluded.size;
+    if (excluded.size === 0) {
+      excludedSection.style.display = 'none';
+      excludedChips.innerHTML = '';
+      return;
+    }
+    excludedSection.style.display = 'block';
+    excludedChips.innerHTML = '';
+    excluded.forEach(i => {
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      const name = photos[i].length > 28 ? photos[i].slice(0, 25) + '…' : photos[i];
+      chip.innerHTML = `${name} <button title="Unexclude" onclick="unexclude(${i})">×</button>`;
+      excludedChips.appendChild(chip);
+    });
+  }
+</script>
+</body>
+</html>
